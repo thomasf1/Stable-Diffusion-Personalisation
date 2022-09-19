@@ -774,7 +774,6 @@ if __name__ == "__main__":
         config.data.params.train.params.data_root = opt.data_root
         config.data.params.reg.params.data_root = opt.reg_data_root
         config.data.params.validation.params.data_root = opt.data_root
-        data = instantiate_from_config(config.data)
 
         data = instantiate_from_config(config.data)
         # NOTE according to https://pytorch-lightning.readthedocs.io/en/latest/datamodules.html
