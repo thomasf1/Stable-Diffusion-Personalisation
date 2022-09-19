@@ -1,32 +1,35 @@
-import argparse, os, sys, datetime, glob, importlib, csv
-import numpy as np
+import argparse
+import datetime
+import glob
+import os
+import sys
 import time
-import torch
-
-import torchvision
-import pytorch_lightning as pl
-
-from packaging import version
-from omegaconf import OmegaConf
-from torch.utils.data import random_split, DataLoader, Dataset, Subset
 from functools import partial
-from PIL import Image, ImageDraw, ImageFont
 
+import numpy as np
+import pytorch_lightning as pl
+import torch
+import torchvision
+from omegaconf import OmegaConf
+from packaging import version
+from PIL import Image, ImageFont
 from pytorch_lightning import seed_everything
+from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.trainer import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint, Callback, LearningRateMonitor
-from pytorch_lightning.utilities.distributed import rank_zero_only
 from pytorch_lightning.utilities import rank_zero_info
+from pytorch_lightning.utilities.distributed import rank_zero_only
+from torch.utils.data import DataLoader, Dataset
 
 from ldm.data.base import Txt2ImgIterableBaseDataset
 from ldm.util import instantiate_from_config
-###############windows mods##################
-import os
-os.environ["PL_TORCH_DISTRIBUTED_BACKEND"] = "gloo"
-#PL_TORCH_DISTRIBUTED_BACKEND=gloo
-torch.autograd.set_detect_anomaly(True)
-def get_font(txt, img_fraction=0.05):
-    font = ImageFont.truetype("/Library/fonts/Arial.ttf", fontsize)
+
+###############windows hacks##################
+if os.name == 'nt':
+    os.environ["PL_TORCH_DISTRIBUTED_BACKEND"] = "gloo"
+    #PL_TORCH_DISTRIBUTED_BACKEND=gloo
+    torch.autograd.set_detect_anomaly(True)
+    def get_font(txt, img_fraction=0.05):
+        font = ImageFont.truetype("/Library/fonts/Arial.ttf", fontsize)
 #############################################
 
 
@@ -214,7 +217,7 @@ class ConcatDataset(Dataset):
         return min(len(d) for d in self.datasets)    
 
 class DataModuleFromConfig(pl.LightningDataModule):
-    def __init__(self, batch_size, train=None, reg = None, validation=None, test=None, predict=None,
+    def __init__(self, batch_size, train=None, reg=None, validation=None, test=None, predict=None,
                  wrap=False, num_workers=None, shuffle_test_loader=False, use_worker_init_fn=False,
                  shuffle_val_dataloader=False):
         super().__init__()
@@ -239,6 +242,9 @@ class DataModuleFromConfig(pl.LightningDataModule):
         self.wrap = wrap
 
     def prepare_data(self):
+        print('prepare_data self.dataset_configs')
+        print(self.dataset_configs)
+
         for data_cfg in self.dataset_configs.values():
             instantiate_from_config(data_cfg)
 
@@ -354,7 +360,7 @@ class ImageLogger(Callback):
         self.batch_freq = batch_frequency
         self.max_images = max_images
         self.logger_log_images = {
-            pl.loggers.TestTubeLogger: self._testtube,
+            pl.loggers.TensorBoardLogger: self._tensorboard,
         }
         self.log_steps = [2 ** n for n in range(int(np.log2(self.batch_freq)) + 1)]
         if not increase_log_steps:
@@ -366,7 +372,7 @@ class ImageLogger(Callback):
         self.log_first_step = log_first_step
 
     @rank_zero_only
-    def _testtube(self, pl_module, images, batch_idx, split):
+    def _tensorboard(self, pl_module, images, batch_idx, split):
         for k in images:
             grid = torchvision.utils.make_grid(images[k])
             grid = (grid + 1.0) / 2.0  # -1,1 -> 0,1; c,h,w
@@ -654,15 +660,15 @@ if __name__ == "__main__":
                     "id": nowname,
                 }
             },
-            "testtube": {
-                "target": "pytorch_lightning.loggers.TestTubeLogger",
+            "tensorboard": {
+                "target": "pytorch_lightning.loggers.TensorBoardLogger",
                 "params": {
-                    "name": "testtube",
+                    "name": "tensorboard",
                     "save_dir": logdir,
                 }
             },
         }
-        default_logger_cfg = default_logger_cfgs["testtube"]
+        default_logger_cfg = default_logger_cfgs["tensorboard"]
         if "logger" in lightning_config:
             logger_cfg = lightning_config.logger
         else:
@@ -722,7 +728,7 @@ if __name__ == "__main__":
                 }
             },
             "learning_rate_logger": {
-                "target": "main.LearningRateMonitor",
+                "target": "pytorch_lightning.callbacks.LearningRateMonitor",
                 "params": {
                     "logging_interval": "step",
                     # "log_momentum": True
@@ -823,7 +829,7 @@ if __name__ == "__main__":
 
         def divein(*args, **kwargs):
             if trainer.global_rank == 0:
-                import pudb;
+                import pudb
                 pudb.set_trace()
 
 

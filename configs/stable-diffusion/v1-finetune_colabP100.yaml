@@ -88,7 +88,6 @@ data:
       params:
         size: 512
         set: train
-        reg: true
         per_image_tokens: false
         repeats: 10
     validation:

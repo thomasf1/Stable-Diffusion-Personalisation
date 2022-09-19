@@ -85,6 +85,13 @@ data:
         set: train
         per_image_tokens: false
         repeats: 100
+    reg:
+      target: ldm.data.personalized.PersonalizedBase
+      params:
+        size: 512
+        set: train
+        per_image_tokens: false
+        repeats: 10
     validation:
       target: ldm.data.personalized.PersonalizedBase
       params:
