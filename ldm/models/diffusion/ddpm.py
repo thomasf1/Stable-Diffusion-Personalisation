@@ -348,7 +348,15 @@ class DDPM(pl.LightningModule):
         return loss, loss_dict
 
     def training_step(self, batch, batch_idx):
-        loss, loss_dict = self.shared_step(batch)
+        train_batch = batch[0]
+        reg_batch = batch[1]
+        
+        loss_train, loss_dict = self.shared_step(train_batch)
+        loss_reg, _ = self.shared_step(reg_batch)
+        
+        loss = loss_train + self.reg_weight * loss_reg
+        
+        #loss, loss_dict = self.shared_step(batch)
 
         self.log_dict(loss_dict, prog_bar=True,
                       logger=True, on_step=True, on_epoch=True)
@@ -443,8 +451,10 @@ class LatentDiffusion(DDPM):
                  conditioning_key=None,
                  scale_factor=1.0,
                  scale_by_std=False,
+                 reg_weight = 1.0,
                  *args, **kwargs):
-
+      
+        self.reg_weight = reg_weight
         self.num_timesteps_cond = default(num_timesteps_cond, 1)
         self.scale_by_std = scale_by_std
         assert self.num_timesteps_cond <= kwargs['timesteps']
