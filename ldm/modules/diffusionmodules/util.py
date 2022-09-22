@@ -8,13 +8,12 @@
 # thanks!
 
 
-import os
 import math
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
 from einops import repeat
-
 from ldm.util import instantiate_from_config
 
 
@@ -109,7 +108,7 @@ def checkpoint(func, inputs, params, flag):
                    explicitly take as arguments.
     :param flag: if False, disable gradient checkpointing.
     """
-    if False: # disabled checkpointing to allow requires_grad = False for main model
+    if flag:
         args = tuple(inputs) + tuple(params)
         return CheckpointFunction.apply(func, len(inputs), *args)
     else:
