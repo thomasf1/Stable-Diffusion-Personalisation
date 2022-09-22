@@ -167,7 +167,7 @@ def get_parser(**parser_kwargs):
     #parser.add_argument("--placeholder_tokens", type=str, nargs="+", default=["*"])
 
     parser.add_argument("--init_word", type=str, help="Word to use as source for initial token embedding.")
-    parser.add_argument("--class_word", type=str, default="dog", help="Placeholder token which will be used to denote the concept in future prompts")
+    parser.add_argument("--class_word", type=str, required=True, default="dog", help="Placeholder token which will be used to denote the concept in future prompts")
     
 
     return parser
@@ -242,9 +242,6 @@ class DataModuleFromConfig(pl.LightningDataModule):
         self.wrap = wrap
 
     def prepare_data(self):
-        print('prepare_data self.dataset_configs')
-        print(self.dataset_configs)
-
         for data_cfg in self.dataset_configs.values():
             instantiate_from_config(data_cfg)
 
@@ -457,11 +454,11 @@ class ImageLogger(Callback):
             return True
         return False
 
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=None):
         if not self.disabled and (pl_module.global_step > 0 or self.log_first_step):
             self.log_img(pl_module, batch, batch_idx, split="train")
 
-    def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+    def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=None):
         if not self.disabled and pl_module.global_step > 0:
             self.log_img(pl_module, batch, batch_idx, split="val")
         if hasattr(pl_module, 'calibrate_grad_norm'):
@@ -615,7 +612,7 @@ if __name__ == "__main__":
         # merge trainer cli with config
         trainer_config = lightning_config.get("trainer", OmegaConf.create())
         # default to ddp
-        trainer_config["accelerator"] = "ddp"
+        trainer_config["accelerator"] = "gpu"
         for k in nondefault_trainer_args(opt):
             trainer_config[k] = getattr(opt, k)
         if not "gpus" in trainer_config:
